@@ -1,0 +1,8 @@
+.vsconfig
+.vs/
+Binaries/
+Intermediate/
+Saved/
+Platforms/
+TestDemo.sln
+.idea/
