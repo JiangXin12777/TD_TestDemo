@@ -1,0 +1,38 @@
+{
+	"FileVersion": 3,
+	"Version": 1,
+	"VersionName": "2.2",
+	"FriendlyName": "Ninja Input",
+	"Description": "Multiple reusable handlers for Enhanced Input Actions, including a complete integration with the Gameplay Ability System (GAS).",
+	"Category": "Input",
+	"CreatedBy": "Ninja Bear Studio",
+	"CreatedByURL": "https://www.ninjabear.studio",
+	"DocsURL": "https://tech.ninjabear.studio/ipt-overview.html",
+	"MarketplaceURL": "com.epicgames.launcher://ue/marketplace/product/a754117f71cd46c68394f2c452318a04",
+	"SupportURL": "https://discord.gg/mkB5cQmDws",
+	"EngineVersion": "5.5.0",
+	"CanContainContent": true,
+	"Installed": true,
+	"Modules": [
+		{
+			"Name": "NinjaInput",
+			"Type": "Runtime",
+			"LoadingPhase": "PreDefault"
+		},
+		{
+			"Name": "NinjaInputEditor",
+			"Type": "Editor",
+			"LoadingPhase": "Default"
+		}
+	],
+	"Plugins": [
+		{
+			"Name": "EnhancedInput",
+			"Enabled": true
+		},
+		{
+			"Name": "GameplayAbilities",
+			"Enabled": true
+		}
+	]
+}
