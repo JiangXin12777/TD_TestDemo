@@ -7,6 +7,7 @@
 #include "Abilities/GameplayAbility.h"
 #include "BehaviorTree/BlackboardComponent.h"
 #include "BehaviorTree/Blackboard/BlackboardKeyType_Class.h"
+#include "Runtime/Launch/Resources/Version.h"
 
 UBTTask_ActivateGameplayAbility::UBTTask_ActivateGameplayAbility()
 {
@@ -110,7 +111,15 @@ void UBTTask_ActivateGameplayAbility::OnAbilityEnded_Class(const FAbilityEndedDa
 // ReSharper disable once CppMemberFunctionMayBeConst
 void UBTTask_ActivateGameplayAbility::OnAbilityEnded_Tags(const FAbilityEndedData& Data, UBehaviorTreeComponent* OwnerComp)
 {
-    if (Data.AbilityThatEnded->AbilityTags.HasAll(AbilityTriggerTags))
+	FGameplayTagContainer AbilityThatEndedTags;
+
+#if ENGINE_MINOR_VERSION < 5
+	AbilityThatEndedTags.AppendTags(Data.AbilityThatEnded->AbilityTags);
+#else
+	AbilityThatEndedTags.AppendTags(Data.AbilityThatEnded->GetAssetTags());
+#endif
+	
+    if (AbilityThatEndedTags.HasAll(AbilityTriggerTags))
     {
         HandleFinishedAbility(Data, OwnerComp);
     }

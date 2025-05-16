@@ -94,25 +94,31 @@ void UNinjaGASAbilitySystemComponent::InitializeAttributeSets(const TArray<FDefa
 	for (const FDefaultAttributeSet& Entry : AttributeSets)
 	{
 		const TSubclassOf<UAttributeSet> AttributeSetClass = Entry.AttributeSetClass;
-		const UDataTable* AttributeTable = Entry.AttributeTable;
+		if (!IsValid(AttributeSetClass))
+		{
+			UE_LOG(LogAbilitySystemComponent, Warning, TEXT("Attribute Set Entry is missing a valid Attribute Set class!"));
+			continue;	
+		}
+
+		if (GetSpawnedAttributes().ContainsByPredicate([AttributeSetClass](const UAttributeSet* AttributeSet){ return AttributeSet->GetClass() == AttributeSetClass; }))
+		{
+			UE_LOG(LogAbilitySystemComponent, Warning, TEXT("Discarding Attribute Set %s since it was already spawned!"), *GetNameSafe(AttributeSetClass));
+			continue;
+		}
 		
 		UAttributeSet* NewAttributeSet = NewObject<UAttributeSet>(GetOwner(), AttributeSetClass);
-		if (GetSpawnedAttributes().Contains(NewAttributeSet))
+		check(IsValid(NewAttributeSet));
+		
+		const UDataTable* AttributeTable = Entry.AttributeTable;
+		if (IsValid(AttributeTable))
 		{
-			UE_LOG(LogAbilitySystemComponent, Warning, TEXT("Discarding Attribute Set %s since it was already spawned."), *GetNameSafe(NewAttributeSet));
+			NewAttributeSet->InitFromMetaDataTable(AttributeTable);
+			UE_LOG(LogAbilitySystemComponent, Verbose, TEXT("Initialized Attribute Set %s with %s."), *GetNameSafe(NewAttributeSet), *GetNameSafe(AttributeTable));
 		}
-		else
-		{
-			if (IsValid(AttributeTable))
-			{
-				NewAttributeSet->InitFromMetaDataTable(AttributeTable);
-				UE_LOG(LogAbilitySystemComponent, Verbose, TEXT("Initialized Attribute Set %s with %s."), *GetNameSafe(NewAttributeSet), *GetNameSafe(AttributeTable));
-			}
 
-			AddAttributeSetSubobject(NewAttributeSet);
-			AddedAttributes.Add(NewAttributeSet);			
-		}
-	}		
+		AddAttributeSetSubobject(NewAttributeSet);
+		AddedAttributes.Add(NewAttributeSet);			
+	}	
 }
 
 void UNinjaGASAbilitySystemComponent::InitializeGameplayEffects(const TArray<FDefaultGameplayEffect>& GameplayEffects)
@@ -249,6 +255,40 @@ void UNinjaGASAbilitySystemComponent::ClearActorInfo()
 {
 	ClearDefaults();
 	Super::ClearActorInfo();
+}
+
+void UNinjaGASAbilitySystemComponent::AbilitySpecInputPressed(FGameplayAbilitySpec& Spec)
+{
+	Super::AbilitySpecInputPressed(Spec);
+
+	// As done by Lyra, use a replicated event instead of replicating the input directly.
+	if (Spec.IsActive())
+	{
+		TArray<UGameplayAbility*> Instances = Spec.GetAbilityInstances();
+
+		const FGameplayAbilityActivationInfo& ActivationInfo = Instances.Last()->GetCurrentActivationInfoRef();
+		const FPredictionKey OriginalPredictionKey = ActivationInfo.GetActivationPredictionKey();
+
+		// Invoke the replication event, providing a valid Prediction Key.
+		InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputPressed, Spec.Handle, OriginalPredictionKey);
+	}
+}
+
+void UNinjaGASAbilitySystemComponent::AbilitySpecInputReleased(FGameplayAbilitySpec& Spec)
+{
+	Super::AbilitySpecInputReleased(Spec);
+
+	// As done by Lyra, use a replicated event instead of replicating the input directly.
+	if (Spec.IsActive())
+	{
+		TArray<UGameplayAbility*> Instances = Spec.GetAbilityInstances();
+		
+		const FGameplayAbilityActivationInfo& ActivationInfo = Instances.Last()->GetCurrentActivationInfoRef();
+		const FPredictionKey OriginalPredictionKey = ActivationInfo.GetActivationPredictionKey();
+
+		// Invoke the replication event, providing a valid Prediction Key.
+		InvokeReplicatedEvent(EAbilityGenericReplicatedEvent::InputReleased, Spec.Handle, OriginalPredictionKey);
+	}
 }
 
 bool UNinjaGASAbilitySystemComponent::ShouldDoServerAbilityRPCBatch() const
@@ -403,6 +443,20 @@ void UNinjaGASAbilitySystemComponent::SetReplicatedMontageInfo(FGameplayAbilityR
 const UNinjaGASDataAsset* UNinjaGASAbilitySystemComponent::GetAbilityData() const
 {
 	return DefaultAbilitySetup;
+}
+
+void UNinjaGASAbilitySystemComponent::DeferredSetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, const float NewValue)
+{
+	const float OldValue = ActiveGameplayEffects.GetAttributeBaseValue(Attribute);
+	ActiveGameplayEffects.SetAttributeBaseValue(Attribute, NewValue);
+	SetBaseAttributeValueFromReplication(Attribute, NewValue, OldValue);
+}
+
+void UNinjaGASAbilitySystemComponent::DeferredSetBaseAttributeValueFromReplication(const FGameplayAttribute& Attribute, const FGameplayAttributeData& NewValue)
+{
+	const float OldValue = ActiveGameplayEffects.GetAttributeBaseValue(Attribute);
+	ActiveGameplayEffects.SetAttributeBaseValue(Attribute, NewValue.GetBaseValue());
+	SetBaseAttributeValueFromReplication(Attribute, NewValue.GetBaseValue(), OldValue);
 }
 
 void UNinjaGASAbilitySystemComponent::ClearDefaults()
